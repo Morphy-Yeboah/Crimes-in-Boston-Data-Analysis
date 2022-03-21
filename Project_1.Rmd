@@ -1,0 +1,256 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button withi? the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+rm(list=ls())
+```
+
+
+```{r}
+
+library("dplyr")
+library("tidyverse")
+library("chron")
+install.packages(c("ggrepel"))
+library("ggplot2")
+library("Hmisc")
+library("funModel?ng")
+library("tidyverse")
+library("lubridate")
+library("tidyr")
+library("rmarkdown")
+library("visdat")
+library("maps")
+library("leaflet")
+library("plotly")
+ 
+library("DataExplorer")
+library("lattice")
+library("gridExtra")
+
+```
+```{r}
+bos_crime = read.csv('?rime.csv')
+head(bos_crime)
+bos_crime
+
+```
+Map of MA
+
+```{r}
+
+ggplot(map_data("state", region = "Massachusetts"), aes(long, lat, group = group)) +
+  geom_polygon(fill = "gray", colour = "red") +
+  #labs(caption= "Data Source : Boston |@ Pankaj Shah")+
+  coo?d_quickmap()
+
+```
+
+
+
+
+Preprocessing 
+
+```{r}
+district_name = c(
+A1 = 'Downtown',
+A15= 'Charlestown',
+A7= 'East Boston',
+B2= 'Roxbury',
+B3= 'Mattapan',
+C6= 'South Boston',
+C11= 'Dorchester',
+D4= 'South End',
+D14= 'Brighton',
+E5= 'West Roxbury',
+E13= 'Jamaic? Plain',
+E18= 'Hyde Park')
+
+bos_crime$DISTRICT = as.factor(district_name[(bos_crime$DISTRICT)] )
+head(bos_crime$DISTRICT)
+
+
+
+sort(table(bos_crime$DISTRICT), decreasing = TRUE)
+
+
+```
+
+```{r}
+#is.na(bos_crime)
+sort(sapply(bos_crime, function(x) sum(is.na(x))?, decreasing = TRUE)
+
+
+
+```
+
+```{r}
+bos_crime %>%
+    filter(occurred_on_date < ymd("2018-12-21")) %>% 
+    group_by(occurred_on_date) %>%
+    summarise(n = n()) %>%
+    ggplot(aes(x = occurred_on_date, y = n)) +
+        geom_point() +
+    labs(title = " N?mber of Incidents Reported in each year",
+      y = 'Number of Incidents Reported', 
+         x = 'Date')+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+```
+
+
+```{r}
+bos_crime = clean_names(bos_crime)
+head(bos_crime)
+```
+
+
+```{r}
+glimpse(bos_?rime)
+```
+
+
+```{r}
+bos_crime$incident_number = as.factor(bos_crime$incident_number)
+bos_crime$offense_code_group = as.factor(bos_crime$offense_code_group)
+bos_crime$offense_description = as.factor(bos_crime$offense_description)
+bos_crime$district = as.fact?r(bos_crime$district)
+bos_crime$shooting = as.factor(bos_crime$shooting)
+bos_crime$occurred_on_date = as.Date(bos_crime$occurred_on_date)
+bos_crime$day_of_week = as.factor(bos_crime$day_of_week)
+bos_crime$ucr_part = as.factor(bos_crime$ucr_part)
+bos_crime$?treet = as.factor(bos_crime$street)
+bos_crime$location = as.factor(bos_crime$location)
+```
+
+
+
+
+
+```{r}
+summary(bos_crime)
+```
+
+EDA
+
+```{r}
+
+#Create seasons
+bos_crime = bos_crime %>% mutate(Season = ifelse(month %in% c(6,7,8), "Summer",
+                    ?                                ifelse(month %in% c(9,10,11), "Fall",
+                                                             ifelse(month %in% c(12,1,2), "Winter",
+                                                                    "Spring"))))
+head(?os_crime)
+
+
+
+
+```
+
+
+
+```{r}
+
+plot_crime_offense_season = plot_ly(bos_crime, x = ~ Season, color = ~ Season) %>% 
+  add_histogram() %>%
+  layout(
+    title = "Crimes in boston by season",
+    xaxis = list(title = "Season",
+    yaxis = list(title = "Count"))?  )
+
+plot_crime_offense_season
+```
+
+
+
+```{r}
+qplot(long, lat, data= bos_crime, color=district, geom='point', xlim = c(-71.2,-70.95), ylim= c(42.22,42.4))+
+theme_bw(base_size=15)+
+  geom_point(size = 2)+
+  labs(title="Crime Mapping by district",x="Longtitud?", y='Latitude', color='District')
+```
+
+
+```{r}
+install.packages(c("DT"))
+library(DT)
+
+
+```
+
+
+
+```{r}
+type_crime = sort(table(bos_crime$offense_code_group),decreasing = TRUE)
+type_crime = data.frame(type_crime[type_crime > 10000])
+colnames(type_crime) = c(?Category", "Frequency")
+type_crime$Percentage = type_crime$Frequency / sum(type_crime$Frequency)
+datatable(type_crime, options = list(scrollX='400px'))
+
+head(type_crime)
+
+
+
+```
+
+
+
+```{r}
+
+library(ggrepel)
+bar_p = ggplot(type_crime, aes(x=Category, y=Freque?cy, fill=Category)) + geom_bar(stat="identity") + 
+  theme(axis.text.x=element_blank()) + 
+  geom_text_repel(data=type_crime, aes(label=Category))+
+   labs(title="Occurence of Different Crimes",x="Crime Types", y='Crime Freq.', color='Region')
+bar_p
+
+
+```
+?
+
+```{r}
+library(dplyr)
+
+bos_daily = bos_crime %>%
+  mutate(Date = as.Date(occurred_on_date, "%m/%d/%Y")) %>%
+  group_by(Date) %>%
+  summarize(count = n()) %>%
+  arrange(Date)
+
+head(bos_daily)
+
+
+
+library(scales)
+plot_daily = ggplot(bos_daily, aes(x = Date,?y = count)) +
+  geom_line(color = "red", size = 0.1) +
+  geom_smooth(color = "black") +
+  scale_x_date(breaks = date_breaks("1 year"), labels = date_format("%Y")) +
+  labs(x = "Date of Crime", y = "Number of Crimes", title = "Daily Crimes in Boston from 20?6 - 2018")
+plot_daily
+```
+
+
+
+
+```{r}
+bar_p = ggplot(type_crime, aes(x="", y=Percentage, fill=Category)) + geom_bar(stat="identity") 
+pie =  bar_p + coord_polar("y") 
+pie
+```
+
+
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by p?essing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the conte?ts of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
